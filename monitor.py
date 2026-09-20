@@ -258,7 +258,7 @@ def send_due_reminders(fixtures, state):
                 f"**{f['home']} v {f['away']}**\n"
                 f"{local:%A %d %B, %I:%M %p} AEST\n"
                 f"{f['competition']} | {f['gender']} {f['format']}\n"
-                f"📺 {broadcast_text(f)}"
+                f"📺 Where to watch: {broadcast_text(f)}"
             )
             sent.add(fid)
     state["sent_reminders"] = sorted(sent)
