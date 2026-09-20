@@ -55,7 +55,7 @@ jobs:
 
       - name: Run rugby monitor
         env:
-          DISCORD_BOT_TOKEN: ${{ secrets.RUBGY_DISCORD_BOT_TOKEN }}
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
         shell: bash
         run: |
           MODE="${{ steps.mode.outputs.mode }}"
