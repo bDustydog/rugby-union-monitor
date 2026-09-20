@@ -160,10 +160,15 @@ def upcoming(fixtures, now=None):
 
 def fixture_line(number, fixture):
     local = parse_utc(fixture["date_utc"]).astimezone(TZ)
+    when = (
+        f"{local:%a %d %b} | Event match times TBC"
+        if fixture.get("time_tbc")
+        else f"{local:%a %d %b, %I:%M %p} AEST"
+    )
     return (
         f"{number}. **{fixture['home']} v {fixture['away']}** "
         f"— {fixture['gender']} {fixture['format']}\n"
-        f"   {local:%a %d %b, %I:%M %p} AEST | {fixture['competition']}\n"
+        f"   {when} | {fixture['competition']}\n"
         f"   📺 Where to watch: {broadcast_text(fixture)}"
     )
 
@@ -191,6 +196,10 @@ def fixture_by_id(fixtures):
 
 def process_command(content, fixtures, state):
     content = content.strip().lower()
+    # Be forgiving in Discord: "watch 1 3" and "list" work as well as "!watch 1 3" and "!list".
+    first = content.split()[0] if content else ""
+    if first in {"watch", "unwatch", "list", "fixtures", "help"}:
+        content = "!" + content
     index = state.get("latest_fixture_index", {})
     watched = set(state.get("watched_fixture_ids", []))
     by_id = fixture_by_id(fixtures)
@@ -226,7 +235,11 @@ def process_command(content, fixtures, state):
             f = by_id.get(fid)
             if f:
                 local = parse_utc(f["date_utc"]).astimezone(TZ)
-                rows.append(f"• {f['home']} v {f['away']} — {local:%a %d %b %I:%M %p}")
+                when = f"{local:%a %d %b} — times TBC" if f.get("time_tbc") else f"{local:%a %d %b %I:%M %p}"
+                rows.append(
+                    f"• {f['home']} v {f['away']} — {when}\n"
+                    f"  📺 {broadcast_text(f)}"
+                )
         return "👀 **Your rugby watch list**\n" + ("\n".join(rows) if rows else "Nothing selected yet.")
 
     return None
@@ -248,6 +261,8 @@ def send_due_reminders(fixtures, state):
     for fid in state.get("watched_fixture_ids", []):
         f = by_id.get(fid)
         if not f or fid in sent:
+            continue
+        if f.get("time_tbc"):
             continue
         kickoff = parse_utc(f["date_utc"])
         hours = (kickoff - now).total_seconds() / 3600
