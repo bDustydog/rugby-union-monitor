@@ -23,6 +23,20 @@
     "stan_default": "Stan Sport",
     "free_wallabies": "9Now",
     "free_wallaroos": "9Now",
-    "free_note": "Free live stream is only shown when an Australian free-to-air/official stream is confirmed."
+    "free_note": "The bot checks official Australian rights first. RugbyPass TV and World Rugby YouTube are shown as fallback checks only when live Australian access is not confirmed."
+  },
+  "paid_viewing_sources": {
+    "Stan Sport": "https://www.stan.com.au/watch/sport/rugby"
+  },
+  "free_viewing_sources": {
+    "9Now": "https://www.9now.com.au/",
+    "RugbyPass TV": "https://rugbypass.tv/",
+    "World Rugby YouTube": "https://www.youtube.com/@WorldRugby"
+  },
+  "official_broadcast_pages": {
+    "rugby_australia_watch": "https://www.rugby.com.au/watch",
+    "world_rugby_nations_cup": "https://www.world.rugby/nations-cup/",
+    "wxv_where_to_watch": "https://www.world.rugby/wxv/en/where-to-watch",
+    "rugbypass_faq": "https://info.rugbypass.tv/faqs"
   }
 }
