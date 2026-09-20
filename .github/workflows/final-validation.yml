@@ -1,0 +1,46 @@
+name: Final Rugby Validation
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/final-validation.yml"
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Validate monitor
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.Rugby_DISCORD_BOT_TOKEN }}
+        run: |
+          python -m py_compile monitor.py
+          python - <<'PY'
+          import json, os, requests
+          import monitor
+          fixtures = monitor.fetch_all_fixtures()
+          state = monitor.load_state()
+          preview = monitor.make_digest(fixtures, dict(state))
+          assert "Where to watch:" in preview
+          assert len([f for f in fixtures if str(f["id"]).startswith("svns-")]) == 9
+          assert len(state.get("watched_fixture_ids", [])) == 2
+          test_state = dict(state)
+          response = monitor.process_command("list", fixtures, test_state)
+          assert response and "Your rugby watch list" in response and "📺" in response
+          response2 = monitor.process_command("watch 7 9", fixtures, test_state)
+          assert response2 and "Watching" in response2
+          h={"Authorization":f"Bot {os.environ['DISCORD_BOT_TOKEN']}"}
+          r=requests.get("https://discord.com/api/v10/channels/1551020299665940482", headers=h, timeout=30)
+          r.raise_for_status()
+          assert r.json().get("name") == "general"
+          print("ALL_FINAL_CHECKS_PASSED")
+          PY
