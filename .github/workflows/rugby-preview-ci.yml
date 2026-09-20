@@ -1,0 +1,37 @@
+name: Rugby Preview CI
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - main
+    paths:
+      - "monitor.py"
+      - "config.json"
+      - "requirements.txt"
+      - "data/manual_fixtures.json"
+      - ".github/workflows/rugby-preview-ci.yml"
+
+permissions:
+  contents: read
+
+jobs:
+  preview:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Compile Python
+        run: python -m py_compile monitor.py
+
+      - name: Build live preview
+        run: python monitor.py preview
