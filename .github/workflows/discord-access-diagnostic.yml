@@ -1,0 +1,49 @@
+name: Discord Access Diagnostic
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/discord-access-diagnostic.yml"
+
+jobs:
+  diagnostic:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Test Discord access
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.Rugby_DISCORD_BOT_TOKEN }}
+        shell: bash
+        run: |
+          python - <<'PY'
+          import os, requests
+          token = os.environ["DISCORD_BOT_TOKEN"]
+          h = {"Authorization": f"Bot {token}"}
+          api = "https://discord.com/api/v10"
+
+          me = requests.get(f"{api}/users/@me", headers=h, timeout=30)
+          print("BOT_IDENTITY_STATUS", me.status_code)
+          if me.ok:
+              j = me.json()
+              print("BOT_USER_ID", j.get("id"))
+              print("BOT_USERNAME", j.get("username"))
+
+          guilds = requests.get(f"{api}/users/@me/guilds", headers=h, timeout=30)
+          print("GUILDS_STATUS", guilds.status_code)
+          if guilds.ok:
+              data = guilds.json()
+              print("GUILD_COUNT", len(data))
+              for g in data:
+                  print("GUILD", g.get("id"), g.get("name"))
+
+          ch = requests.get(f"{api}/channels/1551020296700698744", headers=h, timeout=30)
+          print("CHANNEL_STATUS", ch.status_code)
+          if ch.ok:
+              j = ch.json()
+              print("CHANNEL_ID", j.get("id"))
+              print("CHANNEL_NAME", j.get("name"))
+              print("CHANNEL_GUILD_ID", j.get("guild_id"))
+          else:
+              print("CHANNEL_RESPONSE", ch.text[:300])
+          PY
