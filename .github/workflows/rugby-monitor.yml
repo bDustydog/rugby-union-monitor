@@ -1,0 +1,73 @@
+name: Rugby Monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+          - weekly
+          - poll
+  schedule:
+    # Sunday 08:00 Brisbane time (UTC+10)
+    - cron: "0 22 * * 6"
+    # Check commands and reminders hourly
+    - cron: "5 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: rugby-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Choose run mode
+        id: mode
+        shell: bash
+        run: |
+          MODE="poll"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            MODE="${{ inputs.mode }}"
+          elif [[ "${{ github.event.schedule }}" == "0 22 * * 6" ]]; then
+            MODE="weekly"
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "Running mode: $MODE"
+
+      - name: Run rugby monitor
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.DISCORD_BOT_TOKEN }}
+        run: python monitor.py "${{ steps.mode.outputs.mode }}"
+
+      - name: Persist monitor state
+        if: steps.mode.outputs.mode != 'preview'
+        shell: bash
+        run: |
+          if git diff --quiet -- state.json; then
+            echo "No state changes."
+            exit 0
+          fi
+          git config user.name "rugby-monitor[bot]"
+          git config user.email "rugby-monitor@users.noreply.github.com"
+          git add state.json
+          git commit -m "Update rugby monitor state"
+          git push
