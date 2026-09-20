@@ -1,7 +1,20 @@
 {
   "last_discord_message_id": "1551050583731867810",
   "last_weekly_digest": null,
-  "latest_fixture_index": {},
+  "latest_fixture_index": {
+    "1": "wxv-challenger-2026-09-26-fiji-netherlands",
+    "2": "wxv-challenger-2026-09-26-hong-kong-samoa",
+    "3": "wxv-challenger-2026-09-26-spain-brazil",
+    "4": "wxv-2026-09-26-italy-south-africa",
+    "5": "wxv-2026-09-26-england-new-zealand",
+    "6": "wxv-2026-09-26-wales-usa",
+    "7": "wxv-2026-09-26-scotland-australia",
+    "8": "wxv-2026-09-26-canada-france",
+    "9": "wallabies-2026-09-27-south-africa"
+  },
   "sent_reminders": [],
-  "watched_fixture_ids": []
+  "watched_fixture_ids": [
+    "wallabies-2026-09-27-south-africa",
+    "wxv-2026-09-26-scotland-australia"
+  ]
 }
