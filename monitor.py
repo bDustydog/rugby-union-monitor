@@ -164,7 +164,7 @@ def fixture_line(number, fixture):
         f"{number}. **{fixture['home']} v {fixture['away']}** "
         f"— {fixture['gender']} {fixture['format']}\n"
         f"   {local:%a %d %b, %I:%M %p} AEST | {fixture['competition']}\n"
-        f"   📺 {broadcast_text(fixture)}"
+        f"   📺 Where to watch: {broadcast_text(fixture)}"
     )
 
 
