@@ -1,25 +1,26 @@
 # Rugby Union Monitor
 
-Automated Rugby Union fixture and reminder bot for the dedicated Discord **Rugby** channel.
+Automated Rugby Union fixture and reminder bot for the dedicated Discord **Rugby** server.
 
-## Current build
+## What it does
 
-The repository now contains:
-- Men's and women's international Rugby Union tracking.
-- 15s plus HSBC SVNS event tracking.
-- Brisbane/AEST fixture times.
-- Stan Sport viewing information.
-- Legitimate Australian free-stream information when confirmed (for example 9Now).
-- A numbered weekly Discord fixture list.
-- `!watch` selection commands.
-- Automatic pre-match reminders.
-- Scheduled GitHub Actions.
+- Tracks men's and women's international Rugby Union.
+- Includes 15s and HSBC SVNS 7s events.
+- Shows fixture times in Queensland/AEST.
+- Shows where to watch in Australia, including Stan Sport and confirmed free options such as 9Now.
+- Posts a numbered weekly fixture list to Discord.
+- Lets you select matches with `!watch`.
+- Sends reminders for selected matches before kick-off.
+- Checks Discord commands and reminders every 5 minutes using GitHub Actions.
 
-Configured Discord targets:
-- Rugby channel: `1551020296700698744`
-- User: `1203632253398421539`
+## Discord
 
-## Discord commands
+- Server: **Rugby**
+- Text channel: **#general**
+- Channel ID: `1551020299665940482`
+- User ID: `1203632253398421539`
+
+## Commands
 
 ```
 !fixtures
@@ -30,34 +31,28 @@ Configured Discord targets:
 !help
 ```
 
-The weekly list is posted Sunday morning Brisbane time. The monitor then checks hourly for your commands and for selected matches that are within 12 hours of kickoff.
+The weekly list is scheduled for Sunday morning Queensland time. Command and reminder checks run every 5 minutes.
+
+## GitHub secret
+
+The Discord bot token is stored as a repository Actions secret named:
+
+`Rugby_DISCORD_BOT_TOKEN`
+
+Do not commit the token to the repository.
 
 ## Data
 
 The monitor combines:
 - FixtureDownload international competition feeds.
-- Curated current Wallabies/WXV fixtures for competitions not exposed in those feeds.
-- Current HSBC SVNS event dates.
+- Curated current Wallabies and women's international fixtures where a suitable feed is not available.
+- HSBC SVNS event dates.
 
-The current seeded schedule includes the September 2026 WXV round, Wallabies v South Africa on 27 September, the October Bledisloe Tests and the opening 2026/27 SVNS events.
+The current seeded schedule includes September 2026 women's internationals, Wallabies v South Africa on 27 September, the October Bledisloe Tests, and the opening 2026/27 SVNS events.
 
-## One remaining setup item
+## Manual run
 
-Create a Discord bot, add it to the server with permission to **View Channel**, **Read Message History** and **Send Messages**, then add its token in:
-
-`GitHub repository → Settings → Secrets and variables → Actions → New repository secret`
-
-Secret name:
-
-`DISCORD_BOT_TOKEN`
-
-Until that secret exists, scheduled GitHub runs safely skip the Discord posting step instead of failing.
-
-## Manual test
-
-In GitHub open **Actions → Rugby Monitor → Run workflow**.
-
-Choose:
-- `preview` to test the fixture build without Discord.
-- `weekly` to post the numbered list after the Discord token is configured.
-- `poll` to process Discord commands/reminders.
+In GitHub open **Actions → Rugby Monitor → Run workflow** and choose:
+- `preview` — build the fixture list without posting.
+- `weekly` — post the numbered weekly list.
+- `poll` — process Discord commands and due reminders.
