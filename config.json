@@ -1,0 +1,28 @@
+{
+  "timezone": "Australia/Brisbane",
+  "discord_channel_id": "1551020296700698744",
+  "discord_user_id": "1203632253398421539",
+  "lookahead_days": 8,
+  "fixture_sources": [
+    {
+      "competition": "Nations Championship",
+      "slug": "nations-championship-2026",
+      "gender": "Men",
+      "format": "15s",
+      "stan": true
+    },
+    {
+      "competition": "World Rugby Nations Cup",
+      "slug": "world-rugby-nations-cup-2026",
+      "gender": "Men",
+      "format": "15s",
+      "stan": true
+    }
+  ],
+  "broadcast_rules": {
+    "stan_default": "Stan Sport",
+    "free_wallabies": "9Now",
+    "free_wallaroos": "9Now",
+    "free_note": "Free live stream is only shown when an Australian free-to-air/official stream is confirmed."
+  }
+}
