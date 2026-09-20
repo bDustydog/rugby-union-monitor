@@ -36,6 +36,54 @@
     "free_stream_au": null
   },
   {
+    "id": "wxv-2026-09-26-italy-south-africa",
+    "competition": "WXV Global Series",
+    "gender": "Women",
+    "format": "15s",
+    "date_utc": "2026-09-26T12:30:00Z",
+    "home": "Italy",
+    "away": "South Africa",
+    "location": "Stadio Omero Tognon, Pordenone",
+    "stan": true,
+    "free_stream_au": null
+  },
+  {
+    "id": "wxv-2026-09-26-england-new-zealand",
+    "competition": "WXV Global Series",
+    "gender": "Women",
+    "format": "15s",
+    "date_utc": "2026-09-26T14:00:00Z",
+    "home": "England",
+    "away": "New Zealand",
+    "location": "Allianz Stadium, London",
+    "stan": true,
+    "free_stream_au": null
+  },
+  {
+    "id": "wxv-2026-09-26-wales-usa",
+    "competition": "WXV Global Series",
+    "gender": "Women",
+    "format": "15s",
+    "date_utc": "2026-09-26T14:00:00Z",
+    "home": "Wales",
+    "away": "USA",
+    "location": "Cardiff Arms Park, Cardiff",
+    "stan": true,
+    "free_stream_au": null
+  },
+  {
+    "id": "wxv-2026-09-26-scotland-australia",
+    "competition": "WXV Global Series",
+    "gender": "Women",
+    "format": "15s",
+    "date_utc": "2026-09-26T15:10:00Z",
+    "home": "Scotland",
+    "away": "Australia",
+    "location": "Hive Stadium, Edinburgh",
+    "stan": true,
+    "free_stream_au": null
+  },
+  {
     "id": "wxv-2026-09-26-canada-france",
     "competition": "WXV Global Series",
     "gender": "Women",
@@ -46,6 +94,54 @@
     "location": "Stade Marcel-Deflandre, La Rochelle",
     "stan": true,
     "free_stream_au": null
+  },
+  {
+    "id": "wallabies-2026-09-27-south-africa",
+    "competition": "Flight Centre Series",
+    "gender": "Men",
+    "format": "15s",
+    "date_utc": "2026-09-27T09:30:00Z",
+    "home": "Australia",
+    "away": "South Africa",
+    "location": "Optus Stadium, Perth",
+    "stan": true,
+    "free_stream_au": "9Now"
+  },
+  {
+    "id": "wxv-2026-09-28-ireland-japan",
+    "competition": "WXV Global Series",
+    "gender": "Women",
+    "format": "15s",
+    "date_utc": "2026-09-28T11:45:00Z",
+    "home": "Ireland",
+    "away": "Japan",
+    "location": "Ireland",
+    "stan": true,
+    "free_stream_au": null
+  },
+  {
+    "id": "wallabies-2026-10-10-new-zealand",
+    "competition": "Bledisloe Cup",
+    "gender": "Men",
+    "format": "15s",
+    "date_utc": "2026-10-10T05:10:00Z",
+    "home": "New Zealand",
+    "away": "Australia",
+    "location": "Eden Park, Auckland",
+    "stan": true,
+    "free_stream_au": "9Now"
+  },
+  {
+    "id": "wallabies-2026-10-17-new-zealand",
+    "competition": "Bledisloe Cup",
+    "gender": "Men",
+    "format": "15s",
+    "date_utc": "2026-10-17T05:45:00Z",
+    "home": "Australia",
+    "away": "New Zealand",
+    "location": "Accor Stadium, Sydney",
+    "stan": true,
+    "free_stream_au": "9Now"
   },
   {
     "id": "svns-2026-dubai",
