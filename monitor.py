@@ -134,22 +134,142 @@ def fetch_all_fixtures():
     return sorted(unique.values(), key=lambda f: parse_utc(f["date_utc"]))
 
 
-def free_stream_for(fixture):
-    if fixture.get("free_stream_au"):
-        return fixture["free_stream_au"]
+PAGE_CACHE = {}
+
+
+def official_page_text(url):
+    if not url:
+        return ""
+    if url in PAGE_CACHE:
+        return PAGE_CACHE[url]
+    try:
+        r = requests.get(url, timeout=20, headers={"User-Agent": "rugby-union-monitor/1.1"})
+        r.raise_for_status()
+        text = BeautifulSoup(r.text, "html.parser").get_text(" ", strip=True)
+    except Exception as exc:
+        print(f"WARNING: broadcaster check failed for {url}: {exc}", file=sys.stderr)
+        text = ""
+    PAGE_CACHE[url] = text
+    return text
+
+
+def md_link(label, url=None):
+    return f"[{label}]({url})" if url else label
+
+
+def add_option(options, label, url=None):
+    if label not in {item[0] for item in options}:
+        options.append((label, url))
+
+
+def explicit_free_streams(fixture):
+    raw = fixture.get("free_stream_au")
+    if not raw:
+        return []
+    if isinstance(raw, str):
+        raw = [raw]
+    links = CONFIG.get("free_viewing_sources", {})
+    options = []
+    for label in raw:
+        add_option(options, label, links.get(label))
+    return options
+
+
+def confirmed_free_options(fixture):
+    """Return official free Australian viewing options we can support with current rules/pages."""
+    options = explicit_free_streams(fixture)
     teams = {fixture.get("home"), fixture.get("away")}
-    # Rugby Australia: Wallabies home Tests and Bledisloe matches are live on Nine/9Now.
-    if "Australia" in teams and (
-        fixture.get("home") == "Australia" or "New Zealand" in teams
-    ) and fixture.get("gender") == "Men":
-        return "9Now"
-    return None
+    competition = fixture.get("competition", "").lower()
+    sources = CONFIG.get("free_viewing_sources", {})
+    pages = CONFIG.get("official_broadcast_pages", {})
+
+    # Rugby Australia confirms Wallabies home Tests and matches against New Zealand
+    # are free on the Nine Network / 9Now in Australia.
+    if (
+        fixture.get("gender") == "Men"
+        and "Australia" in teams
+        and (fixture.get("home") == "Australia" or "New Zealand" in teams)
+    ):
+        evidence_url = pages.get("rugby_australia_watch")
+        text = official_page_text(evidence_url).lower()
+        if (
+            not text
+            or (
+                "all wallabies home games" in text
+                and "new zealand" in text
+                and "9now" in text
+            )
+        ):
+            add_option(options, "9Now", sources.get("9Now"))
+            add_option(options, "Nine Network", evidence_url)
+
+    # World Rugby's Nations Cup site explicitly advertises every match live and free
+    # on RugbyPass TV. Keep this separate from the elite Nations Championship.
+    if "world rugby nations cup" in competition:
+        evidence_url = pages.get("world_rugby_nations_cup")
+        text = official_page_text(evidence_url).lower()
+        if "live for free on rugbypass tv" in text or "watch live for free on rugbypass tv" in text:
+            add_option(options, "RugbyPass TV", sources.get("RugbyPass TV"))
+
+    # Current Australian Rugby World Cup rights include free Nine/9Now coverage
+    # for Australian national-team matches. This rule is only used when such
+    # fixtures are added to the tracker.
+    if "rugby world cup" in competition and "Australia" in teams:
+        add_option(options, "9Now", sources.get("9Now"))
+        add_option(options, "Nine Network", pages.get("rugby_australia_watch"))
+
+    return options
+
+
+def free_fallback_checks(fixture):
+    """Official free services worth checking when a match is not confirmed free in Australia."""
+    competition = fixture.get("competition", "").lower()
+    sources = CONFIG.get("free_viewing_sources", {})
+    checks = []
+
+    # WXV has a current Australia-specific broadcaster page naming Stan Sport for
+    # all matches, so don't imply RugbyPass TV is a free Australian option there.
+    if "wxv" in competition:
+        return checks
+
+    # Rugby Australia says HSBC SVNS is exclusive to Stan Sport in Australia.
+    if "svns" in competition or "sevens" in competition:
+        return checks
+
+    # RugbyPass TV and World Rugby YouTube frequently carry official free rugby,
+    # but rights can be geo-restricted. They are fallbacks, not "confirmed free",
+    # unless a competition-specific rule above confirms them.
+    for label in ("RugbyPass TV", "World Rugby YouTube"):
+        add_option(checks, label, sources.get(label))
+    return checks
+
+
+def broadcast_lines(fixture, prefix=""):
+    paid_url = CONFIG.get("paid_viewing_sources", {}).get("Stan Sport")
+    paid = md_link("Stan Sport", paid_url) if fixture.get("stan") else "Check official broadcaster"
+
+    confirmed = confirmed_free_options(fixture)
+    checks = free_fallback_checks(fixture)
+
+    lines = [f"{prefix}📺 Paid: {paid}"]
+    if confirmed:
+        free_text = " · ".join(md_link(label, url) for label, url in confirmed)
+        lines.append(f"{prefix}🆓 FREE confirmed in Australia: {free_text}")
+    else:
+        lines.append(f"{prefix}🆓 FREE in Australia: none confirmed")
+
+    if checks:
+        check_text = " · ".join(md_link(label, url) for label, url in checks)
+        lines.append(
+            f"{prefix}🔎 Official free checks: {check_text} "
+            "(live rights vary by event/territory)"
+        )
+    return "\n".join(lines)
 
 
 def broadcast_text(fixture):
-    paid = "Stan Sport" if fixture.get("stan") else "Check official broadcaster"
-    free = free_stream_for(fixture)
-    return f"{paid}" + (f" | FREE: {free}" if free else " | Free AU stream: none confirmed")
+    """Compact version retained for compatibility."""
+    return broadcast_lines(fixture).replace("\n", " | ")
 
 
 def upcoming(fixtures, now=None):
@@ -169,7 +289,7 @@ def fixture_line(number, fixture):
         f"{number}. **{fixture['home']} v {fixture['away']}** "
         f"— {fixture['gender']} {fixture['format']}\n"
         f"   {when} | {fixture['competition']}\n"
-        f"   📺 Where to watch: {broadcast_text(fixture)}"
+        f"{broadcast_lines(fixture, prefix='   ')}"
     )
 
 
@@ -238,7 +358,7 @@ def process_command(content, fixtures, state):
                 when = f"{local:%a %d %b} — times TBC" if f.get("time_tbc") else f"{local:%a %d %b %I:%M %p}"
                 rows.append(
                     f"• {f['home']} v {f['away']} — {when}\n"
-                    f"  📺 {broadcast_text(f)}"
+                    f"{broadcast_lines(f, prefix='  ')}"
                 )
         return "👀 **Your rugby watch list**\n" + ("\n".join(rows) if rows else "Nothing selected yet.")
 
@@ -273,7 +393,7 @@ def send_due_reminders(fixtures, state):
                 f"**{f['home']} v {f['away']}**\n"
                 f"{local:%A %d %B, %I:%M %p} AEST\n"
                 f"{f['competition']} | {f['gender']} {f['format']}\n"
-                f"📺 Where to watch: {broadcast_text(f)}"
+                f"{broadcast_lines(f)}"
             )
             sent.add(fid)
     state["sent_reminders"] = sorted(sent)
