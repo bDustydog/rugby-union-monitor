@@ -1,0 +1,40 @@
+name: Process Rugby Commands Now
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/process-now.yml"
+
+permissions:
+  contents: write
+
+jobs:
+  poll-now:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Process Discord commands
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.Rugby_DISCORD_BOT_TOKEN }}
+        run: python monitor.py poll
+      - name: Persist state
+        shell: bash
+        run: |
+          if git diff --quiet -- state.json; then
+            echo "No state changes."
+            exit 0
+          fi
+          git config user.name "rugby-monitor[bot]"
+          git config user.email "rugby-monitor@users.noreply.github.com"
+          git add state.json
+          git commit -m "Process rugby Discord commands"
+          git push
