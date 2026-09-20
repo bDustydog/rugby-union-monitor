@@ -15,8 +15,8 @@ on:
   schedule:
     # Sunday 08:00 Brisbane time (UTC+10)
     - cron: "0 22 * * 6"
-    # Check commands and reminders hourly
-    - cron: "5 * * * *"
+    # Check commands and reminders every 5 minutes
+    - cron: "*/5 * * * *"
 
 permissions:
   contents: write
