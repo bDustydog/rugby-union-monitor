@@ -1,0 +1,48 @@
+name: Rugby Production Smoke Test
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ".github/workflows/smoke-test.yml"
+
+jobs:
+  smoke:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+      - name: Verify fixture build and saved state
+        run: |
+          python monitor.py preview >/tmp/rugby-preview.txt
+          grep -q "Where to watch:" /tmp/rugby-preview.txt
+          python - <<'PY'
+          import json
+          s=json.load(open("state.json"))
+          c=json.load(open("config.json"))
+          assert c["discord_channel_id"] == "1551020299665940482"
+          assert len(s.get("watched_fixture_ids", [])) == 2
+          print("Fixture build OK")
+          print("Discord channel config OK")
+          print("Saved watch selections OK")
+          PY
+      - name: Verify Discord bot and channel access
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.Rugby_DISCORD_BOT_TOKEN }}
+        run: |
+          python - <<'PY'
+          import os, requests, json
+          h={"Authorization":f"Bot {os.environ['DISCORD_BOT_TOKEN']}"}
+          r=requests.get("https://discord.com/api/v10/channels/1551020299665940482",headers=h,timeout=30)
+          r.raise_for_status()
+          j=r.json()
+          assert j.get("name") == "general"
+          print("Discord bot access OK")
+          PY
