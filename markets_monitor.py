@@ -238,7 +238,7 @@ MARKET_WORDS = {"market", "markets", "marketplace", "bazaar", "stall", "stallhol
 FOOD_WORDS = {
     "food", "foods", "street food", "food truck", "food trucks", "food van", "food vans",
     "culinary", "cuisine", "tasting", "feast", "produce", "farmers", "farmers market",
-    "gourmet", "wine", "cheese", "seafood", "barbecue", "bbq"
+    "gourmet", "wine", "cheese", "seafood", "barbecue", "bbq", "taste"
 }
 FESTIVAL_WORDS = {"festival", "fest", "fiesta", "feast"}
 CANDIDATE_TITLE_WORDS = {
@@ -248,15 +248,22 @@ CANDIDATE_TITLE_WORDS = {
 
 
 def classify_relevant_event(title, body):
-    text = f"{title} {body}".lower()
+    title_text = title.lower()
+    body_text = body.lower()
+    text = f"{title_text} {body_text}"
     has_market = any(word in text for word in MARKET_WORDS)
     has_creative = any(word in text for word in CREATIVE_WORDS)
-    has_food = any(word in text for word in FOOD_WORDS)
-    has_festival = any(word in text for word in FESTIVAL_WORDS)
+    title_food = any(word in title_text for word in FOOD_WORDS)
+    body_food = any(word in body_text for word in FOOD_WORDS)
+    title_festival = any(word in title_text for word in FESTIVAL_WORDS)
 
     if has_market and has_creative:
         return "Art / craft / makers"
-    if has_food and (has_market or has_festival):
+
+    # Food must be central to the event, not merely available at an unrelated expo.
+    if title_food:
+        return "Food festival / food market"
+    if title_festival and body_food:
         return "Food festival / food market"
     return None
 
