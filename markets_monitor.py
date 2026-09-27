@@ -225,6 +225,81 @@ def discover_kuranda_weekend():
     return out
 
 
+
+def nth_weekday_of_month(year, month, weekday, n):
+    d = date(year, month, 1)
+    d += timedelta(days=(weekday - d.weekday()) % 7)
+    return d + timedelta(days=7 * (n - 1))
+
+
+def last_weekday_of_month(year, month, weekday):
+    if month == 12:
+        d = date(year + 1, 1, 1) - timedelta(days=1)
+    else:
+        d = date(year, month + 1, 1) - timedelta(days=1)
+    return d - timedelta(days=(d.weekday() - weekday) % 7)
+
+
+def fallback_cairns_council():
+    """Official recurring schedules used when Cairns Council blocks GitHub Actions."""
+    today = now_local().date()
+    horizon = today + timedelta(days=100)
+    out = []
+    cursor = date(today.year, today.month, 1)
+    while cursor <= horizon:
+        y, m = cursor.year, cursor.month
+
+        # Gordonvale Cottage Markets: first Saturday monthly, 7am-1pm.
+        d = nth_weekday_of_month(y, m, 5, 1)
+        if today - timedelta(days=1) <= d <= horizon:
+            out.append(event(
+                "Gordonvale Cottage Markets", dt_on(d, time(7)), dt_on(d, time(13)),
+                "Norman Park, Gordonvale", "Cairns Council recurring schedule",
+                CONFIG["sources"]["cairns_council"], "Community / craft",
+                "Official recurring schedule: first Saturday monthly; homemade crafts, local produce and food"))
+
+        # Smithy Community Markets: second Saturday monthly, 8:30am-2:30pm.
+        d = nth_weekday_of_month(y, m, 5, 2)
+        if today - timedelta(days=1) <= d <= horizon:
+            out.append(event(
+                "Smithy Community Markets", dt_on(d, time(8, 30)), dt_on(d, time(14, 30)),
+                "Smithfield Shopping Centre", "Cairns Council recurring schedule",
+                CONFIG["sources"]["cairns_council"], "Community market",
+                "Official recurring schedule: second Saturday monthly; local stallholders and diverse products"))
+
+        cursor = date(y + (1 if m == 12 else 0), 1 if m == 12 else m + 1, 1)
+    return out
+
+
+def fallback_tanks():
+    """Tanks' published recurring pattern when its site returns HTTP 403 to Actions."""
+    today = now_local().date()
+    horizon = today + timedelta(days=120)
+    out = []
+    for year in range(today.year, horizon.year + 1):
+        for month in range(4, 12):
+            if month == 8:
+                continue
+            d = last_weekday_of_month(year, month, 6)
+            if today - timedelta(days=1) <= d <= horizon:
+                out.append(event(
+                    "Tanks Markets", dt_on(d, time(8)), dt_on(d, time(13)),
+                    "Tanks Arts Centre, Collins Avenue, Edge Hill",
+                    "Tanks published recurring schedule", CONFIG["sources"]["tanks"],
+                    "Art / craft / makers",
+                    "Official pattern: last Sunday Apr-Nov except August; local art, craft, vintage and makers"))
+        # Carnival on Collins replaces the August market and is held on Father's Day.
+        d = nth_weekday_of_month(year, 9, 6, 1)
+        if today - timedelta(days=1) <= d <= horizon:
+            out.append(event(
+                "Carnival on Collins", dt_on(d, time(9)), dt_on(d, time(15)),
+                "Collins Avenue, Edge Hill",
+                "Tanks published recurring schedule", CONFIG["sources"]["tanks"],
+                "Art / craft / makers",
+                "Father's Day market/festival on Collins Avenue; verify times on the official listing"))
+    return out
+
+
 def discover_all():
     discoverers = [discover_cairns_council, discover_tanks, discover_palm_cove,
                    discover_yungaburra, discover_port_douglas, discover_kuranda_weekend]
@@ -234,6 +309,12 @@ def discover_all():
             found.extend(fn())
         except Exception as exc:
             print(f"WARNING: {fn.__name__} failed: {exc}", file=sys.stderr)
+            if fn is discover_cairns_council:
+                print("INFO: using official recurring Cairns Council market schedules", file=sys.stderr)
+                found.extend(fallback_cairns_council())
+            elif fn is discover_tanks:
+                print("INFO: using Tanks published recurring schedule", file=sys.stderr)
+                found.extend(fallback_tanks())
     merged = {}
     priority = {"Tanks Arts Centre": 6, "Palm Cove Markets": 6, "Yungaburra Markets": 6,
                 "Douglas Shire Council": 6, "Kuranda Village": 5, "Cairns Regional Council": 4}
