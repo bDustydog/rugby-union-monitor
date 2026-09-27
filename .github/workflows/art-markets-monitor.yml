@@ -1,0 +1,86 @@
+name: Cairns Art Markets Monitor
+
+on:
+  workflow_dispatch:
+    inputs:
+      mode:
+        description: "Run mode"
+        required: true
+        default: "preview"
+        type: choice
+        options:
+          - preview
+          - weekly
+          - poll
+  schedule:
+    # Monday 08:00 Brisbane time (UTC+10)
+    - cron: "0 22 * * 0"
+    # Offset from rugby's 5-minute schedule.
+    - cron: "2,17,32,47 * * * *"
+
+permissions:
+  contents: write
+
+concurrency:
+  group: cairns-art-markets-monitor
+  cancel-in-progress: false
+
+jobs:
+  monitor:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v7
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: "3.12"
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt
+
+      - name: Choose run mode
+        id: mode
+        shell: bash
+        run: |
+          MODE="poll"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            MODE="${{ inputs.mode }}"
+          elif [[ "${{ github.event.schedule }}" == "0 22 * * 0" ]]; then
+            MODE="weekly"
+          fi
+          echo "mode=$MODE" >> "$GITHUB_OUTPUT"
+          echo "Running mode: $MODE"
+
+      - name: Run market monitor
+        env:
+          DISCORD_BOT_TOKEN: ${{ secrets.Rugby_DISCORD_BOT_TOKEN }}
+          MARKETS_DISCORD_CHANNEL_ID: ${{ vars.MARKETS_DISCORD_CHANNEL_ID }}
+        shell: bash
+        run: |
+          MODE="${{ steps.mode.outputs.mode }}"
+          if [[ "$MODE" != "preview" && ( -z "$DISCORD_BOT_TOKEN" || -z "$MARKETS_DISCORD_CHANNEL_ID" ) ]]; then
+            echo "Market Discord channel is not configured yet; skipping live Discord run."
+            exit 0
+          fi
+          python markets_monitor.py "$MODE"
+
+      - name: Persist market state
+        if: steps.mode.outputs.mode != 'preview'
+        shell: bash
+        run: |
+          if git diff --quiet -- markets_state.json; then
+            echo "No state changes."
+            exit 0
+          fi
+          git config user.name "art-markets-monitor[bot]"
+          git config user.email "art-markets-monitor@users.noreply.github.com"
+          git add markets_state.json
+          git commit -m "Update art markets monitor state"
+          for attempt in 1 2 3; do
+            git pull --rebase origin main && git push && exit 0
+            echo "Push attempt $attempt failed; retrying..."
+            sleep $((attempt * 4))
+          done
+          exit 1
