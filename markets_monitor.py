@@ -540,7 +540,16 @@ def discover_all():
         old = merged.get(key)
         if not old or priority.get(e["source_name"], 0) > priority.get(old["source_name"], 0):
             merged[key] = e
-    return sorted(merged.values(), key=lambda e: datetime.fromisoformat(e["start"]))
+    result = sorted(merged.values(), key=lambda e: datetime.fromisoformat(e["start"]))
+    specials = [e for e in result if "Special" in e.get("event_type", "")]
+    print(
+        f"INFO: discovered {len(result)} market dates across sources; "
+        f"{len(specials)} special/ad-hoc date(s).",
+        file=sys.stderr,
+    )
+    for e in specials[:12]:
+        print(f"INFO: special -> {e['name']} | {e['start']} | {e['source_name']}", file=sys.stderr)
+    return result
 
 
 def discord_headers():
