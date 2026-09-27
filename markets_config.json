@@ -10,8 +10,17 @@
     "palm_cove": "https://www.palmcovemarkets.com/",
     "yungaburra": "https://www.yungaburramarkets.com/when-where/",
     "port_douglas": "https://douglas.qld.gov.au/port-douglas-markets/",
-    "kuranda": "https://www.kuranda.org/markets"
+    "kuranda": "https://www.kuranda.org/markets",
+    "four_ca": "https://www.4ca.com.au/community-events/",
+    "cairns_showgrounds": "https://cairnsshow.com.au/events/"
   },
-  "include": {"kuranda_weekend_option": true},
-  "reminders": {"seven_days_hour": 8, "one_day_hour": 8, "day_of_hour": 6}
+  "include": {
+    "kuranda_weekend_option": true
+  },
+  "reminders": {
+    "seven_days_hour": 8,
+    "one_day_hour": 8,
+    "day_of_hour": 6
+  },
+  "discovery_horizon_days": 90
 }
