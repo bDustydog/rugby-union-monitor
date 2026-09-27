@@ -1,0 +1,17 @@
+{
+  "timezone": "Australia/Brisbane",
+  "discord_channel_id": "",
+  "discord_user_id": "1203632253398421539",
+  "digest_days": 14,
+  "request_timeout_seconds": 25,
+  "sources": {
+    "cairns_council": "https://www.cairns.qld.gov.au/experience-cairns/events/markets",
+    "tanks": "https://www.cairns.qld.gov.au/tanks/visiting/tanks-markets",
+    "palm_cove": "https://www.palmcovemarkets.com/",
+    "yungaburra": "https://www.yungaburramarkets.com/when-where/",
+    "port_douglas": "https://douglas.qld.gov.au/port-douglas-markets/",
+    "kuranda": "https://www.kuranda.org/markets"
+  },
+  "include": {"kuranda_weekend_option": true},
+  "reminders": {"seven_days_hour": 8, "one_day_hour": 8, "day_of_hour": 6}
+}
