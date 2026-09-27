@@ -5,6 +5,7 @@ import re
 import sys
 from datetime import date, datetime, time, timedelta
 from pathlib import Path
+from urllib.parse import urljoin, urlparse
 from zoneinfo import ZoneInfo
 
 import requests
@@ -37,12 +38,12 @@ def slugify(value):
     return re.sub(r"[^a-z0-9]+", "-", value.lower()).strip("-")[:70]
 
 
-def event(name, start, end, location, source_name, source_url, kind, notes, free=True):
+def event(name, start, end, location, source_name, source_url, kind, notes, free=True, event_type="Regular"):
     base = f"{name}|{start.date().isoformat()}|{location}".lower()
     eid = f"{start.date().isoformat()}-{slugify(name)[:38]}-{hashlib.sha1(base.encode()).hexdigest()[:8]}"
     return {"id": eid, "name": name, "start": start.isoformat(), "end": end.isoformat() if end else None,
             "location": location, "source_name": source_name, "source_url": source_url,
-            "kind": kind, "notes": notes, "free": free}
+            "kind": kind, "notes": notes, "free": free, "event_type": event_type}
 
 
 def http_text(url):
@@ -226,6 +227,217 @@ def discover_kuranda_weekend():
 
 
 
+
+CREATIVE_WORDS = {
+    "art", "arts", "artist", "artists", "craft", "crafts", "handcraft", "handcrafted",
+    "handmade", "artisan", "artisans", "maker", "makers", "ceramic", "ceramics",
+    "jewellery", "jewelry", "photography", "glass art", "vintage", "creative",
+    "local stallholders", "local stall holders"
+}
+MARKET_WORDS = {"market", "markets", "marketplace", "bazaar", "stall", "stallholder", "stallholders"}
+CANDIDATE_TITLE_WORDS = {
+    "market", "markets", "maker", "makers", "craft", "handcraft", "artisan",
+    "bazaar", "fair", "festival", "expo", "gem", "handmade"
+}
+
+
+def is_creative_market(title, body):
+    text = f"{title} {body}".lower()
+    has_market = any(word in text for word in MARKET_WORDS)
+    has_creative = any(word in text for word in CREATIVE_WORDS)
+    return has_market and has_creative
+
+
+def candidate_title(title):
+    lower = title.lower()
+    return any(word in lower for word in CANDIDATE_TITLE_WORDS)
+
+
+def parse_4ca_event_page(url, title_hint=""):
+    html = http_text(url)
+    lines = clean_lines(html)
+    body = " ".join(lines)
+    title = title_hint
+    soup = BeautifulSoup(html, "html.parser")
+    h1 = soup.find(["h1", "h2"])
+    if h1 and h1.get_text(" ", strip=True):
+        title = h1.get_text(" ", strip=True)
+
+    if not is_creative_market(title, body):
+        return None
+
+    date_line_index = None
+    start = end = None
+    full = re.compile(
+        r"(?i)\b(\d{1,2}/\d{1,2}/20\d{2})\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))\s+to\s+"
+        r"(\d{1,2}/\d{1,2}/20\d{2})\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm))"
+    )
+    for i, line in enumerate(lines):
+        m = full.search(line)
+        if m:
+            d1 = datetime.strptime(m.group(1), "%d/%m/%Y").date()
+            d2 = datetime.strptime(m.group(3), "%d/%m/%Y").date()
+            start = dt_on(d1, parse_clock(m.group(2)))
+            end = dt_on(d2, parse_clock(m.group(4)))
+            date_line_index = i
+            break
+
+    if not start:
+        return None
+
+    location = "Cairns / FNQ"
+    if date_line_index is not None:
+        for line in lines[date_line_index + 1: date_line_index + 5]:
+            low = line.lower()
+            if low not in {"free", "event details", "advertisement"} and len(line) <= 160:
+                location = line.rstrip(".")
+                break
+
+    lower = body.lower()
+    free = bool(re.search(r"\bfree\b", lower))
+    regular = any(x in lower for x in ["every month", "monthly", "every 2nd", "every second", "first sunday", "second saturday"])
+    etype = "Regular discovery" if regular else "Special / ad hoc"
+    kind = "Art / craft / makers" if any(x in lower for x in ["art", "craft", "handmade", "artisan", "maker"]) else "Creative market"
+    return event(title, start, end, location, "4CA Community Events", url, kind,
+                 "Discovered from a local community-event submission; check source for organiser updates.",
+                 free=free, event_type=etype)
+
+
+def discover_4ca_ad_hoc():
+    list_url = CONFIG["sources"]["four_ca"]
+    html = http_text(list_url)
+    soup = BeautifulSoup(html, "html.parser")
+    seen = set()
+    out = []
+    horizon = now_local() + timedelta(days=int(CONFIG.get("discovery_horizon_days", 90)))
+
+    for a in soup.find_all("a", href=True):
+        title = re.sub(r"\s+", " ", a.get_text(" ", strip=True))
+        if not title or not candidate_title(title):
+            continue
+        url = urljoin(list_url, a["href"])
+        parsed = urlparse(url)
+        if "4ca.com.au" not in parsed.netloc or "/event" not in parsed.path:
+            continue
+        if url in seen:
+            continue
+        seen.add(url)
+        try:
+            item = parse_4ca_event_page(url, title)
+            if item:
+                start = datetime.fromisoformat(item["start"]).astimezone(TZ)
+                if now_local() - timedelta(days=1) <= start <= horizon:
+                    out.append(item)
+        except Exception as exc:
+            print(f"WARNING: 4CA detail failed {url}: {exc}", file=sys.stderr)
+    return out
+
+
+def find_jsonld_events(value):
+    found = []
+    if isinstance(value, dict):
+        if value.get("@type") == "Event" or (isinstance(value.get("@type"), list) and "Event" in value.get("@type")):
+            found.append(value)
+        for v in value.values():
+            found.extend(find_jsonld_events(v))
+    elif isinstance(value, list):
+        for v in value:
+            found.extend(find_jsonld_events(v))
+    return found
+
+
+def jsonld_location(obj):
+    loc = obj.get("location")
+    if isinstance(loc, str):
+        return loc
+    if not isinstance(loc, dict):
+        return "Cairns / FNQ"
+    name = loc.get("name") or ""
+    address = loc.get("address")
+    bits = [name]
+    if isinstance(address, str):
+        bits.append(address)
+    elif isinstance(address, dict):
+        bits.extend([address.get("streetAddress"), address.get("addressLocality"), address.get("addressRegion")])
+    return ", ".join(str(x).strip() for x in bits if x and str(x).strip()) or "Cairns / FNQ"
+
+
+def parse_jsonld_market_page(url, source_name, title_hint=""):
+    html = http_text(url)
+    soup = BeautifulSoup(html, "html.parser")
+    body = soup.get_text(" ", strip=True)
+    objects = []
+    for script in soup.find_all("script", attrs={"type": "application/ld+json"}):
+        try:
+            objects.extend(find_jsonld_events(json.loads(script.string or script.get_text())))
+        except Exception:
+            continue
+
+    for obj in objects:
+        title = obj.get("name") or title_hint
+        description = BeautifulSoup(str(obj.get("description") or ""), "html.parser").get_text(" ", strip=True)
+        evidence = f"{body} {description}"
+        if not is_creative_market(title, evidence):
+            continue
+        raw_start = obj.get("startDate")
+        if not raw_start:
+            continue
+        try:
+            start = datetime.fromisoformat(str(raw_start).replace("Z", "+00:00"))
+            if start.tzinfo is None:
+                start = start.replace(tzinfo=TZ)
+            start = start.astimezone(TZ)
+        except ValueError:
+            continue
+        raw_end = obj.get("endDate")
+        end = None
+        if raw_end:
+            try:
+                end = datetime.fromisoformat(str(raw_end).replace("Z", "+00:00"))
+                if end.tzinfo is None:
+                    end = end.replace(tzinfo=TZ)
+                end = end.astimezone(TZ)
+            except ValueError:
+                end = None
+        lower = evidence.lower()
+        regular = any(x in lower for x in ["monthly", "every month", "weekly", "every sunday", "every saturday"])
+        etype = "Regular discovery" if regular else "Special / ad hoc"
+        free = "free" in lower and "entry" in lower
+        return event(title, start, end, jsonld_location(obj), source_name, url,
+                     "Art / craft / makers",
+                     "Discovered from a live local events calendar; check source for organiser updates.",
+                     free=free, event_type=etype)
+    return None
+
+
+def discover_cairns_showgrounds():
+    list_url = CONFIG["sources"]["cairns_showgrounds"]
+    html = http_text(list_url)
+    soup = BeautifulSoup(html, "html.parser")
+    horizon = now_local() + timedelta(days=int(CONFIG.get("discovery_horizon_days", 90)))
+    out, seen = [], set()
+    for a in soup.find_all("a", href=True):
+        title = re.sub(r"\s+", " ", a.get_text(" ", strip=True))
+        if not title or not candidate_title(title):
+            continue
+        url = urljoin(list_url, a["href"])
+        parsed = urlparse(url)
+        if "cairnsshow.com.au" not in parsed.netloc or "/event" not in parsed.path:
+            continue
+        if url in seen:
+            continue
+        seen.add(url)
+        try:
+            item = parse_jsonld_market_page(url, "Cairns Showgrounds", title)
+            if item:
+                start = datetime.fromisoformat(item["start"]).astimezone(TZ)
+                if now_local() - timedelta(days=1) <= start <= horizon:
+                    out.append(item)
+        except Exception as exc:
+            print(f"WARNING: Showgrounds detail failed {url}: {exc}", file=sys.stderr)
+    return out
+
+
 def nth_weekday_of_month(year, month, weekday, n):
     d = date(year, month, 1)
     d += timedelta(days=(weekday - d.weekday()) % 7)
@@ -302,7 +514,8 @@ def fallback_tanks():
 
 def discover_all():
     discoverers = [discover_cairns_council, discover_tanks, discover_palm_cove,
-                   discover_yungaburra, discover_port_douglas, discover_kuranda_weekend]
+                   discover_yungaburra, discover_port_douglas, discover_kuranda_weekend,
+                   discover_4ca_ad_hoc, discover_cairns_showgrounds]
     found = []
     for fn in discoverers:
         try:
@@ -316,7 +529,8 @@ def discover_all():
                 print("INFO: using Tanks published recurring schedule", file=sys.stderr)
                 found.extend(fallback_tanks())
     merged = {}
-    priority = {"Tanks Arts Centre": 6, "Palm Cove Markets": 6, "Yungaburra Markets": 6,
+    priority = {"Cairns Showgrounds": 8, "4CA Community Events": 7,
+                "Tanks Arts Centre": 6, "Palm Cove Markets": 6, "Yungaburra Markets": 6,
                 "Douglas Shire Council": 6, "Kuranda Village": 5, "Cairns Regional Council": 4}
     for e in found:
         d = datetime.fromisoformat(e["start"]).date().isoformat()
@@ -386,7 +600,7 @@ def fmt_event(n, e):
         when += f"–{end:%-I:%M %p}"
     return (f"{n}. **{e['name']}**\n"
             f"   📅 {when} AEST | 📍 {e['location']}\n"
-            f"   🎨 {e['kind']} | 💰 {'FREE' if e.get('free') else 'Check listing'}\n"
+            f"   🎨 {e['kind']} | {'✨' if 'Special' in e.get('event_type', '') else '🔁'} {e.get('event_type', 'Regular')} | 💰 {'FREE' if e.get('free') else 'Check listing'}\n"
             f"   {e['notes']}\n"
             f"   🔗 {e['source_url']}")
 
@@ -478,7 +692,7 @@ def send_due_reminders(events, state):
                 send_discord(
                     f"⏰ <@{CONFIG['discord_user_id']}> **Market reminder — {title}**\n"
                     f"**{e['name']}**\n📅 {start:%A %d %B, %-I:%M %p} AEST\n"
-                    f"📍 {e['location']}\n🎨 {e['kind']}\n🔗 {e['source_url']}")
+                    f"📍 {e['location']}\n🎨 {e['kind']} · {e.get('event_type', 'Regular')}\n🔗 {e['source_url']}")
                 already.add(label)
         sent[eid] = sorted(already)
 
