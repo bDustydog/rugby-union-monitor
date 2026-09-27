@@ -235,17 +235,34 @@ CREATIVE_WORDS = {
     "local stallholders", "local stall holders"
 }
 MARKET_WORDS = {"market", "markets", "marketplace", "bazaar", "stall", "stallholder", "stallholders"}
+FOOD_WORDS = {
+    "food", "foods", "street food", "food truck", "food trucks", "food van", "food vans",
+    "culinary", "cuisine", "tasting", "feast", "produce", "farmers", "farmers market",
+    "gourmet", "wine", "cheese", "seafood", "barbecue", "bbq"
+}
+FESTIVAL_WORDS = {"festival", "fest", "fiesta", "feast"}
 CANDIDATE_TITLE_WORDS = {
     "market", "markets", "maker", "makers", "craft", "handcraft", "artisan",
     "bazaar", "fair", "festival", "expo", "gem", "handmade"
 }
 
 
-def is_creative_market(title, body):
+def classify_relevant_event(title, body):
     text = f"{title} {body}".lower()
     has_market = any(word in text for word in MARKET_WORDS)
     has_creative = any(word in text for word in CREATIVE_WORDS)
-    return has_market and has_creative
+    has_food = any(word in text for word in FOOD_WORDS)
+    has_festival = any(word in text for word in FESTIVAL_WORDS)
+
+    if has_market and has_creative:
+        return "Art / craft / makers"
+    if has_food and (has_market or has_festival):
+        return "Food festival / food market"
+    return None
+
+
+def is_creative_market(title, body):
+    return classify_relevant_event(title, body) is not None
 
 
 def candidate_title(title):
@@ -263,7 +280,8 @@ def parse_4ca_event_page(url, title_hint=""):
     if h1 and h1.get_text(" ", strip=True):
         title = h1.get_text(" ", strip=True)
 
-    if not is_creative_market(title, body):
+    kind = classify_relevant_event(title, body)
+    if not kind:
         return None
 
     date_line_index = None
@@ -297,7 +315,6 @@ def parse_4ca_event_page(url, title_hint=""):
     free = bool(re.search(r"\bfree\b", lower))
     regular = any(x in lower for x in ["every month", "monthly", "every 2nd", "every second", "first sunday", "second saturday"])
     etype = "Regular discovery" if regular else "Special / ad hoc"
-    kind = "Art / craft / makers" if any(x in lower for x in ["art", "craft", "handmade", "artisan", "maker"]) else "Creative market"
     return event(title, start, end, location, "4CA Community Events", url, kind,
                  "Discovered from a local community-event submission; check source for organiser updates.",
                  free=free, event_type=etype)
@@ -377,7 +394,8 @@ def parse_jsonld_market_page(url, source_name, title_hint=""):
         title = obj.get("name") or title_hint
         description = BeautifulSoup(str(obj.get("description") or ""), "html.parser").get_text(" ", strip=True)
         evidence = f"{body} {description}"
-        if not is_creative_market(title, evidence):
+        kind = classify_relevant_event(title, evidence)
+        if not kind:
             continue
         raw_start = obj.get("startDate")
         if not raw_start:
@@ -404,7 +422,7 @@ def parse_jsonld_market_page(url, source_name, title_hint=""):
         etype = "Regular discovery" if regular else "Special / ad hoc"
         free = "free" in lower and "entry" in lower
         return event(title, start, end, jsonld_location(obj), source_name, url,
-                     "Art / craft / makers",
+                     kind,
                      "Discovered from a live local events calendar; check source for organiser updates.",
                      free=free, event_type=etype)
     return None
@@ -609,7 +627,7 @@ def fmt_event(n, e):
         when += f"–{end:%-I:%M %p}"
     return (f"{n}. **{e['name']}**\n"
             f"   📅 {when} AEST | 📍 {e['location']}\n"
-            f"   🎨 {e['kind']} | {'✨' if 'Special' in e.get('event_type', '') else '🔁'} {e.get('event_type', 'Regular')} | 💰 {'FREE' if e.get('free') else 'Check listing'}\n"
+            f"   {'🍴' if 'Food' in e['kind'] else '🎨'} {e['kind']} | {'✨' if 'Special' in e.get('event_type', '') else '🔁'} {e.get('event_type', 'Regular')} | 💰 {'FREE' if e.get('free') else 'Check listing'}\n"
             f"   {e['notes']}\n"
             f"   🔗 {e['source_url']}")
 
@@ -701,7 +719,7 @@ def send_due_reminders(events, state):
                 send_discord(
                     f"⏰ <@{CONFIG['discord_user_id']}> **Market reminder — {title}**\n"
                     f"**{e['name']}**\n📅 {start:%A %d %B, %-I:%M %p} AEST\n"
-                    f"📍 {e['location']}\n🎨 {e['kind']} · {e.get('event_type', 'Regular')}\n🔗 {e['source_url']}")
+                    f"📍 {e['location']}\n{'🍴' if 'Food' in e['kind'] else '🎨'} {e['kind']} · {e.get('event_type', 'Regular')}\n🔗 {e['source_url']}")
                 already.add(label)
         sent[eid] = sorted(already)
 
