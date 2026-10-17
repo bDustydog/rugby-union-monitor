@@ -10,6 +10,7 @@ on:
       - "config.json"
       - "requirements.txt"
       - "data/manual_fixtures.json"
+      - "tests/**"
       - ".github/workflows/rugby-preview-ci.yml"
 
 permissions:
@@ -32,6 +33,9 @@ jobs:
 
       - name: Compile Python
         run: python -m py_compile monitor.py
+
+      - name: Test fixture kickoff time zones
+        run: python -m unittest discover -s tests -v
 
       - name: Build live preview
         run: python monitor.py preview
