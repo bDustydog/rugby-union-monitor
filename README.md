@@ -58,6 +58,15 @@ The Discord weekly list, `!list`, and match reminders all use the same broadcast
 
 ## Data
 
+**Adding confirmed fixtures without a live feed:** record the kickoff as the official
+venue-local wall-clock time using `kickoff_local` (e.g. `2026-10-17T15:45:00`),
+`kickoff_timezone` (IANA venue zone, e.g. `Australia/Sydney`), and
+`kickoff_source` (official event/organiser URL). Do not manually convert
+the time to UTC. The monitor derives UTC automatically, then displays
+Queensland time in `Australia/Brisbane`. The preview CI tests require
+source-backed venue-local times for new confirmed fixtures and catch
+daylight-saving errors.
+
 The monitor combines:
 - FixtureDownload international competition feeds.
 - Curated current Wallabies and women's international fixtures where a suitable feed is not available.
