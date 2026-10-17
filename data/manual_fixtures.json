@@ -136,12 +136,14 @@
     "competition": "Bledisloe Cup",
     "gender": "Men",
     "format": "15s",
-    "date_utc": "2026-10-17T05:45:00Z",
     "home": "Australia",
     "away": "New Zealand",
     "location": "Accor Stadium, Sydney",
     "stan": true,
-    "free_stream_au": "9Now"
+    "free_stream_au": "9Now",
+    "kickoff_local": "2026-10-17T15:45:00",
+    "kickoff_timezone": "Australia/Sydney",
+    "kickoff_source": "https://www.rugby.com.au/news/wallabies-all-blacks-bledisloe-cup-sydney-wallaroos-sevens-how-to-watch-australia-where-to-watch-channel-teams-20261014"
   },
   {
     "id": "svns-2026-dubai",
