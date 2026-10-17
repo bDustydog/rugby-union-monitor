@@ -32,6 +32,34 @@ def parse_utc(value):
     return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
 
 
+
+def normalize_manual_fixture(fixture):
+    """Derive UTC from an officially published local kickoff and venue timezone."""
+    local_string = fixture.get("kickoff_local")
+    zone_string = fixture.get("kickoff_timezone")
+    if local_string is None and zone_string is None:
+        if not fixture.get("date_utc"):
+            raise ValueError(f"Fixture {fixture.get('id')} needs a kickoff time")
+        return fixture
+    if not local_string or not zone_string:
+        raise ValueError(f"Fixture {fixture.get('id')} needs both kickoff_local and kickoff_timezone")
+    local_naive = datetime.fromisoformat(local_string)
+    if local_naive.tzinfo is not None:
+        raise ValueError("kickoff_local must not include a UTC offset; use kickoff_timezone")
+    venue_zone = ZoneInfo(zone_string)
+    # During daylight saving changes, 02:xx can occur twice or not at all.
+    if local_naive.replace(tzinfo=venue_zone, fold=0).utcoffset() != local_naive.replace(tzinfo=venue_zone, fold=1).utcoffset():
+        raise ValueError(f"Ambiguous or nonexistent venue time: {local_string} in {zone_string}")
+    utc_kickoff = local_naive.replace(tzinfo=venue_zone).astimezone(timezone.utc)
+    if utc_kickoff.astimezone(venue_zone).replace(tzinfo=None) != local_naive:
+        raise ValueError(f"Invalid venue time: {local_string} in {zone_string}")
+    if fixture.get("date_utc") and parse_utc(fixture["date_utc"]) != utc_kickoff:
+        raise ValueError(f"Conflicting UTC and local kickoff times for {fixture.get('id')}")
+    normalized = dict(fixture)
+    normalized["date_utc"] = utc_kickoff.isoformat()
+    return normalized
+
+
 def discord_headers():
     token = os.environ.get("DISCORD_BOT_TOKEN")
     if not token:
@@ -127,7 +155,7 @@ def fetch_all_fixtures():
             fixtures.extend(fetch_fixture_download(source))
         except Exception as exc:
             print(f"WARNING: source {source['competition']} failed: {exc}", file=sys.stderr)
-    fixtures.extend(json.loads(MANUAL_PATH.read_text()))
+    fixtures.extend(normalize_manual_fixture(f) for f in json.loads(MANUAL_PATH.read_text()))
     unique = {}
     for f in fixtures:
         unique[f["id"]] = f
