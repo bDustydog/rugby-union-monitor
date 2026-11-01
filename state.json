@@ -1,7 +1,20 @@
 {
   "last_discord_message_id": "1560073212262481922",
-  "last_weekly_digest": "2026-10-25T00:03:08.596277+00:00",
-  "latest_fixture_index": {},
+  "last_weekly_digest": "2026-11-01T00:45:17.949667+00:00",
+  "latest_fixture_index": {
+    "1": "world-rugby-nations-cup-2026:19",
+    "10": "nations-championship-2026:23",
+    "11": "world-rugby-nations-cup-2026:24",
+    "12": "nations-championship-2026:24",
+    "2": "nations-championship-2026:19",
+    "3": "nations-championship-2026:20",
+    "4": "world-rugby-nations-cup-2026:20",
+    "5": "nations-championship-2026:21",
+    "6": "world-rugby-nations-cup-2026:21",
+    "7": "world-rugby-nations-cup-2026:22",
+    "8": "world-rugby-nations-cup-2026:23",
+    "9": "nations-championship-2026:22"
+  },
   "sent_reminders": [
     "wallabies-2026-09-27-south-africa",
     "wallabies-2026-10-10-new-zealand",
