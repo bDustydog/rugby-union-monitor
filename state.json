@@ -1,5 +1,5 @@
 {
-  "last_discord_message_id": "1560073212262481922",
+  "last_discord_message_id": "1569506307898347671",
   "last_weekly_digest": "2026-11-08T01:09:37.864562+00:00",
   "latest_fixture_index": {
     "1": "world-rugby-nations-cup-2026:24",
@@ -24,9 +24,12 @@
     "wxv-2026-09-26-scotland-australia"
   ],
   "watched_fixture_ids": [
+    "nations-championship-2026:28",
+    "nations-championship-2026:30",
     "wallabies-2026-09-27-south-africa",
     "wallabies-2026-10-10-new-zealand",
     "wallabies-2026-10-17-new-zealand",
+    "world-rugby-nations-cup-2026:30",
     "wxv-2026-09-26-scotland-australia"
   ]
 }
